@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PrivilegeDao.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">allTest 覆盖结果</a> &gt; <a href="index.source.html" class="el_package">com.middleware.server.console</a> &gt; <span class="el_source">PrivilegeDao.java</span></div><h1>PrivilegeDao.java</h1><pre class="source lang-java linenums">package com.middleware.server.console;
+
+import com.middleware.server.common.ResponseCode;
+import com.middleware.server.common.ReturnObject;
+import com.middleware.server.mapper.PrivilegePOMapper;
+import com.middleware.server.mapper.RolePrivilegePOMapper;
+import com.middleware.server.mapper.UserRolePOMapper;
+import com.middleware.server.model.BO.Privilege;
+import com.middleware.server.model.BO.PrivilegeBO;
+import com.middleware.server.model.PO.*;
+import com.middleware.server.model.VO.PrivilegeRouteVO;
+import com.middleware.server.model.VO.PrivilegeVO;
+import com.middleware.server.util.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+@Repository
+<span class="fc" id="L27">public class PrivilegeDao implements InitializingBean {</span>
+
+
+    @Autowired
+    private RedisTemplate&lt;String, Serializable&gt; redisTemplate;
+
+    @Autowired
+    PrivilegePOMapper privilegePOMapper;
+
+    @Autowired
+    UserRolePOMapper userRolePOMapper;
+
+    @Autowired
+    RolePrivilegePOMapper rolePrivilegePOMapper;
+
+    @Autowired
+    com.middleware.server.util.Logger logger1;
+<span class="fc" id="L44">    private static final Logger logger = LoggerFactory.getLogger(PrivilegeDao.class);</span>
+<span class="fc" id="L45">    public final Log log=new Log(this.getClass().getName(),&quot;log&quot;);</span>
+
+
+    /**
+     * 将权限加到redis中
+     *
+     * @throws Exception
+     */
+    @Override
+    public void afterPropertiesSet() throws Exception {
+<span class="fc" id="L55">        System.out.println(2222222);</span>
+<span class="fc" id="L56">        PrivilegePOExample example = new PrivilegePOExample();</span>
+<span class="fc" id="L57">        PrivilegePOExample.Criteria criteria = example.createCriteria();</span>
+<span class="fc" id="L58">        criteria.andRequestTypeLessThan(8);</span>
+<span class="fc" id="L59">        List&lt;PrivilegePO&gt; privilegePOS = privilegePOMapper.selectByExample(example);</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        for (PrivilegePO privilegePO : privilegePOS) {</span>
+<span class="fc" id="L61">            Privilege privilege = new Privilege(privilegePO);</span>
+            //检验权限是否被篡改,初始化的情况下为空
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">            if (privilege.authetic()) {</span>
+<span class="fc" id="L64">                boolean a = redisTemplate.opsForHash().putIfAbsent(&quot;Priv&quot;, privilege.getHKey(), privilege.getKey());</span>
+<span class="fc" id="L65">                logger.debug(&quot;权限没有篡改，添加到redis,Hkey=&quot; + privilege.getHKey() + &quot;,value=&quot; + privilege.getKey());</span>
+<span class="fc" id="L66">            } else {</span>
+<span class="nc" id="L67">                System.out.println(privilege.getSignature());</span>
+<span class="nc" id="L68">                logger.debug(privilege.getSignature());</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">                if (privilege.getSignature() == null) {</span>
+<span class="nc" id="L70">                    boolean a = redisTemplate.opsForHash().putIfAbsent(&quot;Priv&quot;, privilege.getHKey(), privilege.getKey());</span>
+<span class="nc" id="L71">                    logger.debug(&quot;权限未初始化，添加到redis,Hkey=&quot; + privilege.getHKey() + &quot;,value=&quot; + privilege.getKey());</span>
+<span class="nc" id="L72">                } else {</span>
+<span class="nc" id="L73">                    logger.debug(&quot;权限被篡改&quot;);</span>
+                }
+            }
+<span class="fc" id="L76">        }</span>
+
+<span class="fc" id="L78">    }</span>
+
+    /**
+     * @author GXC
+     * 给所有权限加签名
+     */
+    public void initialize() {
+<span class="fc" id="L85">        Set&lt;String&gt; keys = redisTemplate.keys(&quot;*&quot;);</span>
+<span class="fc" id="L86">        System.out.println(keys);</span>
+<span class="fc" id="L87">        PrivilegePOExample example = new PrivilegePOExample();</span>
+<span class="fc" id="L88">        List&lt;PrivilegePO&gt; privilegePOS = privilegePOMapper.selectByExample(example);</span>
+<span class="fc bfc" id="L89" title="All 2 branches covered.">        for (PrivilegePO privilegePO : privilegePOS) {</span>
+<span class="fc" id="L90">            Privilege privilege = new Privilege(privilegePO);</span>
+<span class="fc" id="L91">            PrivilegePO po = new PrivilegePO();</span>
+<span class="fc" id="L92">            po.setId(privilegePO.getId());</span>
+<span class="fc" id="L93">            logger.debug(&quot;privilege&quot; + po.getId() + &quot;initialize signature&quot;);</span>
+<span class="fc" id="L94">            po.setSignature(privilege.getCacuSignature());</span>
+<span class="fc" id="L95">            privilegePOMapper.updateByPrimaryKeySelective(po);</span>
+<span class="fc" id="L96">        }</span>
+<span class="fc" id="L97">    }</span>
+
+//-----------------------------权限部分查找与替换----------------------------------------------------------------
+//
+//
+//    public void addChild(ArrayList&lt;Long&gt; ids, ArrayList&lt;Boolean&gt; isSelect, ArrayList&lt;PrivilegeRouteVO&gt; vos, List&lt;PrivilegePO&gt; privilegePOS, PrivilegePO father, PrivilegePO child) {
+//
+//        if (!isSelect.get(ids.indexOf(father.getId()))) {
+//            PrivilegePO dchild = father;
+//            PrivilegePO dfather = null;
+//            for (PrivilegePO po : privilegePOS) {
+//                PrivilegeBO bo = new PrivilegeBO(dchild);
+//                if (po.getId().equals(bo.getParent().get(0))) {
+//                    dfather = po;
+//                    break;
+//                }
+//            }
+//            addChild(ids, isSelect, vos, privilegePOS, dfather, dchild);
+//        } else {
+//            int fatherIndex = privilegePOS.indexOf(father);
+//            int childIndex = privilegePOS.indexOf(child);
+//            //如果request_type为10的话，为9就action里
+//            if (child.getRequestType() == 10) {
+//                vos.get(fatherIndex).getActions().add(child.getUrl());
+//            }
+//            //其他情况为9
+//            else {
+//                vos.get(fatherIndex).getChildren().add(vos.get(childIndex));
+//            }
+//            isSelect.set(childIndex, true);
+//        }
+//    }
+//
+//    public Long getParentId(Long privilegeId) {
+//        PrivilegePO po = privilegePOMapper.selectByPrimaryKey(privilegeId);
+//        PrivilegeBO bo = new PrivilegeBO(po);
+//        return bo.getParent().get(0);
+//    }
+
+//    /**
+//     * 获取权限的子权限的权限字符串
+//     *
+//     * @author GXC
+//     * @param privilegeId 权限id
+//     * @return 权限字符串
+//     */
+//    public List&lt;String&gt; getChild(Long privilegeId) {
+//        PrivilegePOExample example = new PrivilegePOExample();
+//        PrivilegePOExample.Criteria criteria = example.createCriteria();
+//        criteria.andRequestTypeLessThan(8);
+//        List&lt;String&gt; rets = new ArrayList&lt;&gt;();
+//        try {
+//            List&lt;PrivilegePO&gt; pos = privilegePOMapper.selectByExample(example);
+//            logger.debug(&quot;getChild,获取权限id为&quot; + privilegeId + &quot;的子权限&quot;);
+//            for (PrivilegePO po : pos) {
+//                PrivilegeBO bo = new PrivilegeBO(po);
+//                Privilege privilege = new Privilege(po);
+//                String s = (String) redisTemplate.opsForHash().get(&quot;Priv&quot;, privilege.getHKey());
+//                logger.debug(&quot;getChild获取redis中hkey为：&quot;+privilege.getHKey()+&quot;的值&quot;);
+//                if (bo.getParent().contains(privilegeId)) {
+//                    if (!rets.contains(s)) {
+//                        rets.add(s);
+//                    }
+//                }
+//            }
+//        } catch (Exception e){
+//            logger.debug(&quot;getChild服务器错误&quot;);
+//        }
+//
+//        return rets;
+//    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

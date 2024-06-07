@@ -1,0 +1,231 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <title>Coverage Report > UserController</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/highlight-idea.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.pack.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.middleware.server.console</a>
+</div>
+
+<h1>Coverage Summary for Class: UserController (com.middleware.server.console)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Branch, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">UserController</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (7/7)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    50%
+  </span>
+  <span class="absValue">
+    (2/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (21/21)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<div class="sourceCode" id="sourceCode"><i class="no-highlight">1</i>&nbsp;package com.middleware.server.console;
+<i class="no-highlight">2</i>&nbsp;
+<i class="no-highlight">3</i>&nbsp;import com.middleware.server.annotation.Audit;
+<i class="no-highlight">4</i>&nbsp;import com.middleware.server.annotation.LoginUser;
+<i class="no-highlight">5</i>&nbsp;import com.middleware.server.common.Common;
+<i class="no-highlight">6</i>&nbsp;import com.middleware.server.common.ReturnObject;
+<i class="no-highlight">7</i>&nbsp;import com.middleware.server.model.VO.LoginVO;
+<i class="no-highlight">8</i>&nbsp;import com.middleware.server.model.VO.TokenRetVO;
+<i class="no-highlight">9</i>&nbsp;import io.swagger.annotations.ApiImplicitParam;
+<i class="no-highlight">10</i>&nbsp;import io.swagger.annotations.ApiImplicitParams;
+<i class="no-highlight">11</i>&nbsp;import io.swagger.annotations.ApiOperation;
+<i class="no-highlight">12</i>&nbsp;import lombok.extern.slf4j.Slf4j;
+<i class="no-highlight">13</i>&nbsp;import org.springframework.beans.factory.annotation.Autowired;
+<i class="no-highlight">14</i>&nbsp;import org.springframework.validation.annotation.Validated;
+<i class="no-highlight">15</i>&nbsp;import org.springframework.web.bind.annotation.*;
+<i class="no-highlight">16</i>&nbsp;
+<i class="no-highlight">17</i>&nbsp;import javax.servlet.http.HttpServletResponse;
+<i class="no-highlight">18</i>&nbsp;
+<i class="no-highlight">19</i>&nbsp;@RestController
+<b class="fc"><i class="no-highlight">20</i>&nbsp;@Slf4j</b>
+<i class="no-highlight">21</i>&nbsp;@RequestMapping(value = &quot;/&quot;, produces = &quot;application/json;charset=UTF-8&quot;,consumes = &quot;application/json;charset=UTF-8&quot;)
+<b class="fc"><i class="no-highlight">22</i>&nbsp;public class UserController {</b>
+<i class="no-highlight">23</i>&nbsp;    @Autowired
+<i class="no-highlight">24</i>&nbsp;    UserService userService;
+<i class="no-highlight">25</i>&nbsp;    @PostMapping(&quot;/login&quot;)
+<i class="no-highlight">26</i>&nbsp;    public Object login(@Validated @RequestBody LoginVO loginVo, HttpServletResponse response) {
+<b class="fc"><i class="no-highlight">27</i>&nbsp;        System.out.println(loginVo);</b>
+<b class="fc"><i class="no-highlight">28</i>&nbsp;        ReturnObject returnObject = null;</b>
+<b class="fc"><i class="no-highlight">29</i>&nbsp;        returnObject = userService.userLogin(loginVo.getUserName(), loginVo.getPassword());</b>
+<b class="pc"><i class="no-highlight">30</i>&nbsp;        if (returnObject.getData() != null) {</b>
+<b class="fc"><i class="no-highlight">31</i>&nbsp;            TokenRetVO vo = (TokenRetVO) returnObject.getData();</b>
+<b class="fc"><i class="no-highlight">32</i>&nbsp;            response.addHeader(&quot;token&quot;, vo.getToken());</b>
+<i class="no-highlight">33</i>&nbsp;        }
+<b class="fc"><i class="no-highlight">34</i>&nbsp;        return Common.decorateReturnObject(returnObject);</b>
+<i class="no-highlight">35</i>&nbsp;    }
+<i class="no-highlight">36</i>&nbsp;
+<i class="no-highlight">37</i>&nbsp;    @Audit
+<i class="no-highlight">38</i>&nbsp;    @ApiImplicitParams({
+<i class="no-highlight">39</i>&nbsp;            @ApiImplicitParam(paramType = &quot;body&quot;, dataType = &quot;LoginVO&quot;, name = &quot;loginVO&quot;, value = &quot;登录信息&quot;, required = true)
+<i class="no-highlight">40</i>&nbsp;    })
+<i class="no-highlight">41</i>&nbsp;    @ApiOperation(value = &quot;用户登出&quot;)
+<i class="no-highlight">42</i>&nbsp;    @GetMapping(&quot;/userLogout&quot;)
+<i class="no-highlight">43</i>&nbsp;    public Object logout(@LoginUser Long userId) {
+<b class="fc"><i class="no-highlight">44</i>&nbsp;        ReturnObject returnObject = null;</b>
+<b class="fc"><i class="no-highlight">45</i>&nbsp;        returnObject = userService.userLogout(userId);</b>
+<b class="fc"><i class="no-highlight">46</i>&nbsp;        return Common.decorateReturnObject(returnObject);</b>
+<i class="no-highlight">47</i>&nbsp;    }
+<i class="no-highlight">48</i>&nbsp;    //----------------------------------------------------------------------------------------
+<i class="no-highlight">49</i>&nbsp;    //用户与角色部分
+<i class="no-highlight">50</i>&nbsp;
+<i class="no-highlight">51</i>&nbsp;    /**
+<i class="no-highlight">52</i>&nbsp;     * 用户新增角色
+<i class="no-highlight">53</i>&nbsp;     *
+<i class="no-highlight">54</i>&nbsp;     * @param cid
+<i class="no-highlight">55</i>&nbsp;     * @param userid
+<i class="no-highlight">56</i>&nbsp;     * @param roleid
+<i class="no-highlight">57</i>&nbsp;     * @return
+<i class="no-highlight">58</i>&nbsp;     * @author tong
+<i class="no-highlight">59</i>&nbsp;     */
+<i class="no-highlight">60</i>&nbsp;    @Audit
+<i class="no-highlight">61</i>&nbsp;    @ApiImplicitParams({
+<i class="no-highlight">62</i>&nbsp;            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;cid&quot;, value = &quot;创建者id&quot;, required = true),
+<i class="no-highlight">63</i>&nbsp;            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;user&quot;, value = &quot;被赋予权限的用户id&quot;, required = true),
+<i class="no-highlight">64</i>&nbsp;            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;role&quot;, value = &quot;赋予的权限的id&quot;, required = true)
+<i class="no-highlight">65</i>&nbsp;    })
+<i class="no-highlight">66</i>&nbsp;    @ApiOperation(value = &quot;用户新增角色&quot;)
+<i class="no-highlight">67</i>&nbsp;    @PostMapping(&quot;/users/{cid}/beusers/{userid}/roles/{roleid}&quot;)
+<i class="no-highlight">68</i>&nbsp;    public Object userAddRole(@PathVariable Long cid, @PathVariable Long userid, @PathVariable Long roleid) {
+<b class="fc"><i class="no-highlight">69</i>&nbsp;        ReturnObject returnObject = null;</b>
+<b class="fc"><i class="no-highlight">70</i>&nbsp;        returnObject = userService.userAddRole(cid, userid, roleid);</b>
+<b class="fc"><i class="no-highlight">71</i>&nbsp;        return Common.decorateReturnObject(returnObject);</b>
+<i class="no-highlight">72</i>&nbsp;    }
+<i class="no-highlight">73</i>&nbsp;
+<i class="no-highlight">74</i>&nbsp;
+<i class="no-highlight">75</i>&nbsp;    /**
+<i class="no-highlight">76</i>&nbsp;     * 删除某个用户的某个角色
+<i class="no-highlight">77</i>&nbsp;     *
+<i class="no-highlight">78</i>&nbsp;     * @param uid 用户id
+<i class="no-highlight">79</i>&nbsp;     * @param rid 角色id
+<i class="no-highlight">80</i>&nbsp;     * @return Create By GXC
+<i class="no-highlight">81</i>&nbsp;     */
+<i class="no-highlight">82</i>&nbsp;    @Audit
+<i class="no-highlight">83</i>&nbsp;    @ApiImplicitParams({
+<i class="no-highlight">84</i>&nbsp;            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;userid&quot;, value = &quot;用户id&quot;, required = true),
+<i class="no-highlight">85</i>&nbsp;            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;roleid&quot;, value = &quot;角色id&quot;, required = true)
+<i class="no-highlight">86</i>&nbsp;    })
+<i class="no-highlight">87</i>&nbsp;    @ApiOperation(value = &quot;删除某个用户的某个角色&quot;)
+<i class="no-highlight">88</i>&nbsp;    @DeleteMapping(&quot;/user_id/{userid}/role_id/{roleid}&quot;)
+<i class="no-highlight">89</i>&nbsp;    public Object deleteUserRole(@PathVariable(&quot;userid&quot;) Long uid, @PathVariable(&quot;roleid&quot;) Long rid) {
+<b class="fc"><i class="no-highlight">90</i>&nbsp;        ReturnObject returnObject = null;</b>
+<b class="fc"><i class="no-highlight">91</i>&nbsp;        returnObject = userService.deleteUserRole(uid, rid);</b>
+<b class="fc"><i class="no-highlight">92</i>&nbsp;        return Common.decorateReturnObject(returnObject);</b>
+<i class="no-highlight">93</i>&nbsp;    }
+<i class="no-highlight">94</i>&nbsp;
+<i class="no-highlight">95</i>&nbsp;    /**
+<i class="no-highlight">96</i>&nbsp;     * 查询某个用户所拥有角色信息
+<i class="no-highlight">97</i>&nbsp;     *
+<i class="no-highlight">98</i>&nbsp;     * @param uid 发出查询的用户id
+<i class="no-highlight">99</i>&nbsp;     * @param tid 查询目标用户id
+<i class="no-highlight">100</i>&nbsp;     * @return Create By GXC
+<i class="no-highlight">101</i>&nbsp;     */
+<i class="no-highlight">102</i>&nbsp;    @Audit
+<i class="no-highlight">103</i>&nbsp;    @ApiImplicitParams({
+<i class="no-highlight">104</i>&nbsp;            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;uid&quot;, value = &quot;查询用户的id&quot;, required = true),
+<i class="no-highlight">105</i>&nbsp;            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;tid&quot;, value = &quot;查询目标用户的id&quot;, required = true)
+<i class="no-highlight">106</i>&nbsp;    })
+<i class="no-highlight">107</i>&nbsp;    @ApiOperation(value = &quot;某用户查看某用户的角色&quot;)
+<i class="no-highlight">108</i>&nbsp;    @GetMapping(&quot;/users/{uid}/target/{tid}&quot;)
+<i class="no-highlight">109</i>&nbsp;    public Object searchAddRole(@PathVariable(&quot;uid&quot;) Long uid, @PathVariable(&quot;tid&quot;) Long tid) {
+<b class="fc"><i class="no-highlight">110</i>&nbsp;        ReturnObject returnObject = null;</b>
+<b class="fc"><i class="no-highlight">111</i>&nbsp;        returnObject = userService.selectUserRoleByuId(tid);</b>
+<b class="fc"><i class="no-highlight">112</i>&nbsp;        return Common.decorateReturnObject(returnObject);</b>
+<i class="no-highlight">113</i>&nbsp;    }
+<i class="no-highlight">114</i>&nbsp;}
+</div>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+        var codeBlock = document.getElementById('sourceCode');
+
+        if (codeBlock) {
+            hljs.highlightBlock(codeBlock);
+        }
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-04-28 00:34</div>
+</div>
+</body>
+</html>

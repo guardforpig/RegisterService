@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserDao.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">allTest 覆盖结果</a> &gt; <a href="index.source.html" class="el_package">com.middleware.server.console</a> &gt; <span class="el_source">UserDao.java</span></div><h1>UserDao.java</h1><pre class="source lang-java linenums">package com.middleware.server.console;
+
+import com.middleware.server.common.Common;
+import com.middleware.server.common.ResponseCode;
+import com.middleware.server.common.ReturnObject;
+import com.middleware.server.common.TokenJwt;
+import com.middleware.server.mapper.RolePOMapper;
+import com.middleware.server.mapper.UserPOMapper;
+import com.middleware.server.mapper.UserRolePOMapper;
+import com.middleware.server.model.BO.Role;
+import com.middleware.server.model.BO.User;
+import com.middleware.server.model.BO.UserRole;
+import com.middleware.server.model.PO.*;
+import com.middleware.server.model.VO.*;
+import org.apache.ibatis.annotations.Mapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+
+@Mapper
+@Repository
+<span class="fc" id="L30">public class UserDao {</span>
+
+<span class="fc" id="L32">    private static final Logger logger = LoggerFactory.getLogger(UserDao.class);</span>
+
+    @Value(&quot;${privilegeservice.user.expiretime}&quot;)
+    private long timeout;
+<span class="fc" id="L36">    Map&lt;String, String&gt; tokenMap = new HashMap&lt;&gt;();</span>
+
+    @Autowired
+    UserPOMapper userPOMapper;
+
+    @Autowired
+    UserRolePOMapper userRolePOMapper;
+
+    @Autowired
+    RolePOMapper rolePOMapper;
+
+    @Autowired
+    private RedisTemplate&lt;String, Serializable&gt; redisTemplate;
+
+    @Autowired
+    RoleDao roleDao;
+
+    /**
+     * 初始化用户角色，为记录加签名
+     * @author GXC
+     */
+    public void initialize() {
+<span class="fc" id="L58">        UserRolePOExample example = new UserRolePOExample();</span>
+<span class="fc" id="L59">        List&lt;UserRolePO&gt; userRolePOS = userRolePOMapper.selectByExample(example);</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        for (UserRolePO po : userRolePOS) {</span>
+<span class="fc" id="L61">            UserRole userRole=null;</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">            if(po.getCreatorId()!=null)   userRole = new UserRole(po);</span>
+            else continue;
+<span class="fc" id="L64">            po.setGmtModified(LocalDateTime.now());</span>
+<span class="fc" id="L65">            po.setSignature(userRole.getSignature());</span>
+<span class="fc" id="L66">            logger.debug(&quot;user&quot;+po.getUserId()+&quot;   role&quot;+po.getRoleId()+&quot;initialize signature&quot;);</span>
+<span class="fc" id="L67">            userRolePOMapper.updateByPrimaryKeySelective(po);</span>
+<span class="fc" id="L68">        }</span>
+<span class="fc" id="L69">    }</span>
+    /**
+     * @param username 用户名
+     * @param password 密码
+     * @return returnObject
+     * time：2021年7月6日16:47:31
+     * @author GXC
+     */
+    public ReturnObject&lt;String&gt; userLogin(String username, String password) {
+<span class="fc" id="L78">        ReturnObject returnObject = null;</span>
+<span class="fc" id="L79">        UserPOExample userPOExample = new UserPOExample();</span>
+<span class="fc" id="L80">        UserPOExample.Criteria criteria = userPOExample.createCriteria();</span>
+<span class="fc" id="L81">        System.out.println(username);</span>
+<span class="fc" id="L82">        criteria.andUsernameEqualTo(username);</span>
+<span class="fc" id="L83">        criteria.andPasswordEqualTo(password);</span>
+<span class="fc" id="L84">        List&lt;UserPO&gt; userPOList = userPOMapper.selectByExample(userPOExample);</span>
+        //用户密码不正确
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (userPOList.isEmpty()) {</span>
+<span class="nc" id="L87">            logger.debug(&quot;用户名密码不正确&quot;);</span>
+<span class="nc" id="L88">            returnObject = new ReturnObject(ResponseCode.AUTH_INVALID_ACCOUNT);</span>
+        } else {
+<span class="fc bfc" id="L90" title="All 2 branches covered.">            for (UserPO userPO : userPOList) {</span>
+                //重复登录判断-----目前没有
+<span class="fc" id="L92">                TokenJwt tokenJwt = new TokenJwt();</span>
+<span class="fc" id="L93">                int expireTime = 60 * 5 * 1000;</span>
+<span class="fc" id="L94">                String token = tokenJwt.creatToken(userPO.getId(), expireTime);</span>
+                //判断token是否存在
+<span class="fc" id="L96">                String userKey = &quot;u_login_&quot; + userPO.getId().toString();</span>
+                //过期时间和token一样,存到redis
+<span class="fc" id="L98">                redisTemplate.opsForValue().set(userKey, token, expireTime, TimeUnit.SECONDS);</span>
+                //查看用户的权限是否已经到redis，如果没有则放到redis,有则重新设置过期时间
+<span class="fc" id="L100">                String userPrivKey = &quot;u_&quot; + userPO.getId();</span>
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">                if (!redisTemplate.hasKey(userPrivKey)) {</span>
+<span class="nc" id="L102">                    loadAllPrivilege(userPO.getId());</span>
+                } else {
+<span class="fc" id="L104">                    long randTimeout = Common.addRandomTime(timeout);</span>
+<span class="fc" id="L105">                    redisTemplate.expire(userPrivKey, randTimeout, TimeUnit.SECONDS);</span>
+                }
+<span class="fc" id="L107">                TokenRetVO tokenRetVO = new TokenRetVO();</span>
+<span class="fc" id="L108">                tokenRetVO.setToken(token);</span>
+<span class="fc" id="L109">                returnObject = new ReturnObject(tokenRetVO);</span>
+<span class="fc" id="L110">            }</span>
+        }
+<span class="fc" id="L112">        return returnObject;</span>
+    }
+//--------------------------用户&amp;角色部分----------------------------------------------------------------------
+
+    /**
+     * @param creatorId 创建者id
+     * @param userId    用户id
+     * @param roleId    角色id
+     * @return
+     * @author GXC
+     */
+    public ReturnObject userAddRole(Long creatorId, Long userId, Long roleId) {
+<span class="fc" id="L124">        ReturnObject returnObject = null;</span>
+        UserPO userPO;
+        UserPO creatorPo;
+        RolePO rolePO;
+        //先判断用户是否存在
+        //1.创建者是否存在
+        try {
+<span class="fc" id="L131">            logger.debug(&quot;userAddRole查询创建者userId：&quot; + creatorId);</span>
+<span class="fc" id="L132">            creatorPo = userPOMapper.selectByPrimaryKey(creatorId);</span>
+<span class="pc bpc" id="L133" title="1 of 2 branches missed.">            if (creatorPo == null) {</span>
+<span class="nc" id="L134">                logger.debug(&quot;userAddRole查询创建者userId：&quot; + creatorId + &quot;用户不存在&quot;);</span>
+<span class="nc" id="L135">                returnObject = new ReturnObject(ResponseCode.RESOURCE_ID_NOTEXIST, &quot;创建者id不存在&quot;);</span>
+<span class="nc" id="L136">                return returnObject;</span>
+            }
+<span class="nc" id="L138">        } catch (Exception e) {</span>
+<span class="nc" id="L139">            logger.debug(&quot;userAddRole查询创建者userId：&quot; + creatorId + &quot;数据库错误&quot;);</span>
+<span class="nc" id="L140">            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);</span>
+<span class="nc" id="L141">            return returnObject;</span>
+<span class="fc" id="L142">        }</span>
+        //2.判断被创建者是否存在
+        try {
+<span class="fc" id="L145">            logger.debug(&quot;userAddRole查询被授权者userId：&quot; + creatorId);</span>
+<span class="fc" id="L146">            userPO = userPOMapper.selectByPrimaryKey(userId);</span>
+<span class="pc bpc" id="L147" title="1 of 2 branches missed.">            if (userPO == null) {</span>
+<span class="nc" id="L148">                logger.debug(&quot;userAddRole查询被授权者userId：&quot; + creatorId + &quot;用户不存在&quot;);</span>
+<span class="nc" id="L149">                returnObject = new ReturnObject(ResponseCode.RESOURCE_ID_NOTEXIST, &quot;用户id不存在&quot;);</span>
+<span class="nc" id="L150">                return returnObject;</span>
+            }
+<span class="nc" id="L152">        } catch (Exception e) {</span>
+<span class="nc" id="L153">            logger.debug(&quot;userAddRole查询被授权者userId：&quot; + creatorId + &quot;数据库错误&quot;);</span>
+<span class="nc" id="L154">            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);</span>
+<span class="nc" id="L155">            return returnObject;</span>
+<span class="fc" id="L156">        }</span>
+        //3.角色是否存在
+        try {
+<span class="fc" id="L159">            logger.debug(&quot;userAddRole查询角色roleId：&quot; + roleId);</span>
+<span class="fc" id="L160">            rolePO = rolePOMapper.selectByPrimaryKey(roleId);</span>
+<span class="pc bpc" id="L161" title="1 of 2 branches missed.">            if (rolePO == null) {</span>
+<span class="nc" id="L162">                logger.debug(&quot;userAddRole查询角色roleId：&quot; + roleId + &quot;不存在&quot;);</span>
+<span class="nc" id="L163">                returnObject = new ReturnObject(ResponseCode.RESOURCE_ID_NOTEXIST, &quot;角色id不存在&quot;);</span>
+<span class="nc" id="L164">                return returnObject;</span>
+            }
+<span class="nc" id="L166">        } catch (Exception e) {</span>
+<span class="nc" id="L167">            logger.debug(&quot;userAddRole查询角色roleId：&quot; + roleId + &quot;数据库错误&quot;);</span>
+<span class="nc" id="L168">            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);</span>
+<span class="nc" id="L169">            return returnObject;</span>
+<span class="fc" id="L170">        }</span>
+        //4.判断是否重复
+<span class="fc" id="L172">        UserRolePOExample userRolePOExample = new UserRolePOExample();</span>
+<span class="fc" id="L173">        UserRolePOExample.Criteria criteria = userRolePOExample.createCriteria();</span>
+<span class="fc" id="L174">        criteria.andCreatorIdEqualTo(creatorId);</span>
+<span class="fc" id="L175">        criteria.andUserIdEqualTo(userId);</span>
+<span class="fc" id="L176">        criteria.andRoleIdEqualTo(roleId);</span>
+        try {
+<span class="fc" id="L178">            logger.debug(&quot;userAddRole查询用户角色表userId：&quot; + userId + &quot;,roleId:&quot; + roleId);</span>
+<span class="fc" id="L179">            List&lt;UserRolePO&gt; userRolePOS = userRolePOMapper.selectByExample(userRolePOExample);</span>
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">            if (userRolePOS.size() &gt; 0) {</span>
+<span class="nc" id="L181">                logger.debug(&quot;userAddRole查询用户角色表userId：&quot; + userId + &quot;,roleId:&quot; + roleId + &quot;重复添加&quot;);</span>
+<span class="nc" id="L182">                returnObject = new ReturnObject(ResponseCode.USER_ROLE_REGISTERED);</span>
+<span class="nc" id="L183">                return returnObject;</span>
+            }
+<span class="nc" id="L185">        } catch (Exception e) {</span>
+<span class="nc" id="L186">            logger.debug(&quot;userAddRole查询用户角色表userId：&quot; + userId + &quot;,roleId:&quot; + roleId + &quot;数据库错误&quot;);</span>
+<span class="nc" id="L187">            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);</span>
+<span class="nc" id="L188">            return returnObject;</span>
+<span class="fc" id="L189">        }</span>
+        //5.插入数据库
+<span class="fc" id="L191">        UserRolePO userRolePO = new UserRolePO();</span>
+<span class="fc" id="L192">        userRolePO.setRoleId(roleId);</span>
+<span class="fc" id="L193">        userRolePO.setGmtCreate(LocalDateTime.now());</span>
+<span class="fc" id="L194">        userRolePO.setGmtModified(LocalDateTime.now());</span>
+<span class="fc" id="L195">        userRolePO.setCreatorId(creatorId);</span>
+<span class="fc" id="L196">        userRolePO.setUserId(userId);</span>
+<span class="fc" id="L197">        UserRole userRole = new UserRole(userRolePO, new User(creatorPo), new Role(rolePO), new User(userPO));</span>
+<span class="fc" id="L198">        userRolePO.setSignature(userRole.getSignature());</span>
+        try {
+            //清空用户redis
+<span class="fc" id="L201">            String userKey = &quot;u_&quot; + userPO.getId();</span>
+<span class="fc" id="L202">            logger.debug(&quot;userAddRole用户的角色修改，清空redis：key：&quot; + userKey);</span>
+<span class="fc" id="L203">            redisTemplate.delete(userKey);</span>
+<span class="fc" id="L204">            logger.debug(&quot;userAddRole用户的角色修改插入数据库：userId：&quot;+userId+&quot;,roleId&quot;+roleId);</span>
+<span class="fc" id="L205">            userRolePOMapper.insertSelective(userRolePO);</span>
+<span class="nc" id="L206">        } catch (Exception e) {</span>
+<span class="nc" id="L207">            logger.debug(&quot;userAddRole用户的角色修改插入数据库失败：userId：&quot;+userId+&quot;,roleId&quot;+roleId);</span>
+<span class="nc" id="L208">            e.printStackTrace();</span>
+<span class="nc" id="L209">            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;服务器错误&quot;);</span>
+<span class="nc" id="L210">            return returnObject;</span>
+<span class="fc" id="L211">        }</span>
+<span class="fc" id="L212">        UserRoleRetVO userRoleRetVO = userRole.createVo();</span>
+//        loadAllPrivilege(userId);
+<span class="fc" id="L214">        returnObject = new ReturnObject(userRoleRetVO);</span>
+<span class="fc" id="L215">        return returnObject;</span>
+    }
+
+
+    /**
+     * 通过用户和角色id删除用户角色
+     * @param uId 用户id
+     * @param rid 角色id
+     * @return
+     * Create By GXC
+     */
+    public ReturnObject deleteUserRole(Long uId,Long rid){
+<span class="fc" id="L227">        ReturnObject returnObject=null;</span>
+        try{
+<span class="fc" id="L229">            UserRolePOExample example=new UserRolePOExample();</span>
+<span class="fc" id="L230">            UserRolePOExample.Criteria criteria= example.createCriteria();</span>
+<span class="fc" id="L231">            criteria.andUserIdEqualTo(uId);</span>
+<span class="fc" id="L232">            criteria.andRoleIdEqualTo(rid);</span>
+<span class="fc" id="L233">            List&lt;UserRolePO&gt; resultList=userRolePOMapper.selectByExample(example);</span>
+<span class="pc bpc" id="L234" title="1 of 2 branches missed.">            if(resultList.isEmpty()){</span>
+<span class="nc" id="L235">                returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;没有这个条目，请检查用户id和角色id是否正确&quot;);</span>
+            }
+            else{
+<span class="fc" id="L238">                Long id=resultList.get(0).getId();</span>
+<span class="fc" id="L239">                int a=userRolePOMapper.deleteByPrimaryKey(id);</span>
+<span class="fc" id="L240">                String userKey=&quot;u_&quot;+uId;</span>
+<span class="pc bpc" id="L241" title="1 of 2 branches missed.">                if(redisTemplate.hasKey(userKey)) redisTemplate.delete(userKey);</span>
+<span class="fc" id="L242">                loadAllPrivilege(uId);</span>
+<span class="fc" id="L243">                returnObject=new ReturnObject(a);</span>
+            }
+<span class="nc" id="L245">        }catch (Exception e) {</span>
+<span class="nc" id="L246">            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);</span>
+//          e.printStackTrace();
+<span class="fc" id="L248">        }</span>
+<span class="fc" id="L249">        return returnObject;</span>
+    }
+    /**
+     * 查询某个id用户所拥有的角色信息
+     * @param tid 用户的id
+     * @return 该用户角色信息
+     * Create By GXC
+     */
+    public ReturnObject selectUserRoleByuId(Long tid){
+<span class="fc" id="L258">        ReturnObject returnObject = null;</span>
+        try {
+<span class="fc" id="L260">            UserRolePOExample example=new UserRolePOExample();</span>
+<span class="fc" id="L261">            UserRolePOExample.Criteria criteria=example.createCriteria();</span>
+<span class="pc bpc" id="L262" title="1 of 2 branches missed.">            if(tid!=null) criteria.andUserIdEqualTo(tid);</span>
+<span class="fc" id="L263">            List&lt;UserRolePO&gt; resultList=userRolePOMapper.selectByExample(example);</span>
+<span class="fc" id="L264">            List&lt;UserRoleRetVO&gt; returnList=new ArrayList&lt;UserRoleRetVO&gt;();</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">            for(UserRolePO userRolePO:resultList){</span>
+<span class="fc" id="L266">                UserSimpleRetVo userSimpleRetVo=new UserSimpleRetVo(userPOMapper.selectByPrimaryKey(userRolePO.getUserId()));</span>
+<span class="fc" id="L267">                RoleSimpleRetVo roleSimpleRetVo=new RoleSimpleRetVo(rolePOMapper.selectByPrimaryKey(userRolePO.getRoleId()));</span>
+<span class="fc" id="L268">                UserSimpleRetVo creatorUser=new UserSimpleRetVo(userPOMapper.selectByPrimaryKey(userRolePO.getCreatorId()));</span>
+<span class="fc" id="L269">                UserRoleRetVO userRoleRetVO=new UserRoleRetVO(userRolePO,userSimpleRetVo,roleSimpleRetVo,creatorUser);</span>
+<span class="fc" id="L270">                returnList.add(userRoleRetVO);</span>
+<span class="fc" id="L271">            }</span>
+<span class="fc" id="L272">            returnObject=new ReturnObject&lt;List&lt;UserRoleRetVO&gt;&gt;(returnList);</span>
+<span class="nc" id="L273">        }catch (Exception e) {</span>
+<span class="nc" id="L274">            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);</span>
+//          e.printStackTrace();
+<span class="fc" id="L276">        }</span>
+<span class="fc" id="L277">        return returnObject;</span>
+    }
+
+    /**
+     * 将登陆用户的权限都放到redis中
+     *
+     * @param userId
+     * @author GXC
+     */
+    public void loadAllPrivilege(Long userId) {
+<span class="fc" id="L287">        UserRolePOExample rolePOExample = new UserRolePOExample();</span>
+<span class="fc" id="L288">        UserRolePOExample.Criteria criteria = rolePOExample.createCriteria();</span>
+<span class="fc" id="L289">        criteria.andUserIdEqualTo(userId);</span>
+<span class="fc" id="L290">        List&lt;UserRolePO&gt; userRolePOS = userRolePOMapper.selectByExample(rolePOExample);</span>
+<span class="fc" id="L291">        List&lt;Long&gt; allRoleId = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">        for(UserRolePO po:userRolePOS){</span>
+<span class="nc" id="L293">            allRoleId.add(po.getRoleId());</span>
+<span class="nc" id="L294">        }</span>
+<span class="fc" id="L295">        String key = &quot;u_&quot; + userId;</span>
+<span class="fc" id="L296">        Set&lt;String&gt; roleKeys = new HashSet&lt;&gt;(allRoleId.size());</span>
+<span class="pc bpc" id="L297" title="1 of 2 branches missed.">        for (Long roleId : allRoleId) {</span>
+<span class="nc" id="L298">            String roleKey = &quot;r_&quot; + roleId;</span>
+<span class="nc" id="L299">            roleKeys.add(roleKey);</span>
+<span class="nc bnc" id="L300" title="All 2 branches missed.">            if (!redisTemplate.hasKey(roleKey)) {</span>
+<span class="nc" id="L301">                roleDao.loadRolePriv(roleId);</span>
+            }
+            //取第一个集合的set放到第二个set
+<span class="nc" id="L304">            redisTemplate.opsForSet().unionAndStore(roleKeys, key);</span>
+<span class="nc" id="L305">        }</span>
+<span class="fc" id="L306">        long randTimeout = Common.addRandomTime(timeout);</span>
+<span class="fc" id="L307">        redisTemplate.expire(key, randTimeout, TimeUnit.SECONDS);</span>
+<span class="fc" id="L308">    }</span>
+
+    /**
+     * 用户登出
+     *
+     * @param userId 用户id
+     * @return
+     * @author GXC
+     */
+    public ReturnObject userLogout(Long userId) {
+<span class="fc" id="L318">        ReturnObject returnObject = null;</span>
+<span class="fc" id="L319">        String key = &quot;u_login_&quot; + userId;</span>
+<span class="pc bpc" id="L320" title="1 of 2 branches missed.">        if (redisTemplate.hasKey(key)) {</span>
+<span class="fc" id="L321">            logger.debug(&quot;logout:userId:&quot;+userId);</span>
+<span class="fc" id="L322">            redisTemplate.delete(key);</span>
+        }
+<span class="fc" id="L324">        returnObject = new ReturnObject();</span>
+<span class="fc" id="L325">        return returnObject;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

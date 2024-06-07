@@ -1,0 +1,54 @@
+server:
+  port: 8081
+  tomcat:
+    threads:
+      max: 600
+      min-spare: 400
+
+com:
+  middleware:
+    discovery:
+      addr: localhost:8098
+      group: GXC
+spring:
+  name: producer
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/privilige
+    username: root
+    password: 19961119
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 15
+      connection-test-query: SELECT 1
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      pool-name: DatebookHikariCP
+  redis:
+    database: 0
+    host: localhost
+    port: 6379
+    lettuce:
+      pool:
+        max-active: 100
+        max-idle: 100
+        min-idle: 0
+        max-wait: -1
+    timeout: 5000
+privilegeservice:
+  user:
+    # user的权限字在Redis中失效秒数
+    expiretime: 600
+  role:
+    # role的权限字在Redis中失效秒数
+    expiretime: 600
+mybatis:
+  #mapper.xml所在的位置
+  mapper-locations: classpath*:mapper/*.xml
+  #自动将SQL中查出来的带下划线的字段，转换为驼峰标志，再去匹配类中的属性
+  configuration:
+    #输出产生的SQL
+    #log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true

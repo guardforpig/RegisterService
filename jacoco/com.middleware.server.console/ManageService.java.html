@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ManageService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">allTest 覆盖结果</a> &gt; <a href="index.source.html" class="el_package">com.middleware.server.console</a> &gt; <span class="el_source">ManageService.java</span></div><h1>ManageService.java</h1><pre class="source lang-java linenums">package com.middleware.server.console;
+
+import com.alibaba.fastjson.JSON;
+import com.github.pagehelper.PageInfo;
+import com.middleware.server.POJO.Member;
+import com.middleware.server.annotation.Audit;
+import com.middleware.server.common.Common;
+import com.middleware.server.common.ResponseCode;
+import com.middleware.server.common.ReturnObject;
+import com.middleware.server.naming.GroupInfo;
+import com.middleware.server.naming.ServiceInfo;
+import com.middleware.server.util.BroadcastUdp;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static com.middleware.server.Service.RegisterService.groupMap;
+
+@RestController
+<span class="fc" id="L24">@Slf4j</span>
+@RequestMapping(value = &quot;/&quot;, produces = &quot;application/json;charset=UTF-8&quot;,consumes = &quot;application/json;charset=UTF-8&quot;)
+<span class="fc" id="L26">public class ManageService {</span>
+    @GetMapping(&quot;/allgroup&quot;)
+    public Object getAllGroup(@RequestParam(name=&quot;page&quot;,required = false) Integer page,
+                              @RequestParam(name = &quot;pageSize&quot;,required = false) Integer pageSize) {
+<span class="pc bpc" id="L30" title="1 of 2 branches missed.">        if(page==null) page=1;</span>
+<span class="pc bpc" id="L31" title="1 of 2 branches missed.">        if(pageSize==null) pageSize=10;</span>
+<span class="fc" id="L32">        ReturnObject returnObject=null;</span>
+        try{
+<span class="fc" id="L34">            List&lt;String&gt; list=new ArrayList&lt;&gt;(groupMap.keySet());</span>
+<span class="fc" id="L35">            PageInfo&lt;String&gt; groupPageInfo=new PageInfo&lt;String&gt;(list);</span>
+<span class="fc" id="L36">            groupPageInfo.setPages(PageInfo.of(list).getPages());</span>
+<span class="fc" id="L37">            groupPageInfo.setTotal(PageInfo.of(list).getTotal());</span>
+<span class="fc" id="L38">            groupPageInfo.setPageNum(page);</span>
+<span class="fc" id="L39">            groupPageInfo.setPageSize(pageSize);</span>
+<span class="fc" id="L40">            returnObject=new ReturnObject(list);</span>
+<span class="nc" id="L41">        }catch(Exception e){</span>
+<span class="nc" id="L42">            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;服务器错误&quot;);</span>
+<span class="fc" id="L43">        }</span>
+<span class="fc" id="L44">        return Common.decorateReturnObject(returnObject);</span>
+    }
+    @GetMapping(&quot;/checkGroup&quot;)
+    public Object getCertainGroup(@RequestParam(name=&quot;page&quot;,required = false) Integer page,
+                                  @RequestParam(name = &quot;pageSize&quot;,required = false) Integer pageSize,
+                                  @RequestParam(name=&quot;groupName&quot;,required = false) String groupName) {
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">        if(page==null) page=1;</span>
+<span class="pc bpc" id="L51" title="1 of 2 branches missed.">        if(pageSize==null) pageSize=10;</span>
+<span class="fc" id="L52">        ReturnObject returnObject=null;</span>
+        try{
+<span class="fc" id="L54">            List&lt;String&gt; list=new ArrayList&lt;&gt;(groupMap.get(groupName).getServiceMap().keySet());</span>
+<span class="fc" id="L55">            PageInfo&lt;String&gt; servicePageInfo=new PageInfo&lt;String&gt;(list);</span>
+<span class="fc" id="L56">            servicePageInfo.setPages(PageInfo.of(list).getPages());</span>
+<span class="fc" id="L57">            servicePageInfo.setTotal(PageInfo.of(list).getTotal());</span>
+<span class="fc" id="L58">            servicePageInfo.setPageNum(page);</span>
+<span class="fc" id="L59">            servicePageInfo.setPageSize(pageSize);</span>
+<span class="fc" id="L60">            returnObject=new ReturnObject(list);</span>
+<span class="nc" id="L61">        }catch(Exception e){</span>
+<span class="nc" id="L62">            e.printStackTrace();</span>
+<span class="nc" id="L63">            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;组名不存在&quot;);</span>
+<span class="fc" id="L64">        }</span>
+<span class="fc" id="L65">        return Common.decorateReturnObject(returnObject);</span>
+    }
+    @GetMapping(&quot;/checkService&quot;)
+    public Object getCertainService(@RequestParam(name=&quot;page&quot;,required = false) Integer page,
+                                    @RequestParam(name = &quot;pageSize&quot;,required = false) Integer pageSize,
+                                    @RequestParam(name=&quot;groupName&quot;,required = false) String groupName,
+                                    @RequestParam(name=&quot;serviceName&quot;,required = false) String serviceName) {
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        if(page==null) page=1;</span>
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">        if(pageSize==null) pageSize=10;</span>
+<span class="fc" id="L74">        ReturnObject returnObject=null;</span>
+        try{
+<span class="fc" id="L76">            List&lt;Member&gt; list=new ArrayList&lt;&gt;(groupMap.get(groupName).getService(serviceName).getCluster());</span>
+<span class="fc" id="L77">            PageInfo&lt;Member&gt; servicePageInfo=new PageInfo&lt;Member&gt;(list);</span>
+<span class="fc" id="L78">            servicePageInfo.setPages(PageInfo.of(list).getPages());</span>
+<span class="fc" id="L79">            servicePageInfo.setTotal(PageInfo.of(list).getTotal());</span>
+<span class="fc" id="L80">            servicePageInfo.setPageNum(page);</span>
+<span class="fc" id="L81">            servicePageInfo.setPageSize(pageSize);</span>
+<span class="fc" id="L82">            returnObject=new ReturnObject(list);</span>
+<span class="nc" id="L83">        }catch(Exception e){</span>
+<span class="nc" id="L84">            e.printStackTrace();</span>
+<span class="nc" id="L85">            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;该服务不存在&quot;);</span>
+<span class="fc" id="L86">        }</span>
+<span class="fc" id="L87">        return Common.decorateReturnObject(returnObject);</span>
+    }
+    //传组、服务、IP、端口
+    @Audit
+    @PostMapping(&quot;/delete&quot;)
+    public Object delete(@RequestParam(name=&quot;groupName&quot;,required = false) String groupName,
+                         @RequestParam(name=&quot;serviceName&quot;,required = false) String serviceName,
+                         @RequestParam(name=&quot;ip&quot;,required = false) String ip,
+                         @RequestParam(name=&quot;port&quot;,required = false) String port) {
+<span class="fc" id="L96">        ReturnObject returnObject=null;</span>
+        try{
+<span class="fc" id="L98">            GroupInfo group=groupMap.get(groupName);</span>
+<span class="fc" id="L99">            Member member=new Member(ip,port);</span>
+<span class="fc" id="L100">            ServiceInfo service=group.getService(serviceName);</span>
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">            if(service!=null)service.deleteMember(member);</span>
+<span class="fc" id="L102">            group.relieveSub(member);</span>
+<span class="fc" id="L103">            Map&lt;String,ServiceInfo&gt; map=new HashMap&lt;&gt;();</span>
+<span class="fc" id="L104">            map.put(serviceName,service);</span>
+<span class="fc" id="L105">            List&lt;Member&gt; subscribers=group.getConsumers(serviceName);</span>
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">            if(subscribers!=null){</span>
+<span class="fc" id="L107">                new BroadcastUdp(JSON.toJSONString(map),subscribers).start();</span>
+            }
+<span class="fc" id="L109">            returnObject=new ReturnObject();</span>
+<span class="nc" id="L110">        }catch(Exception e){</span>
+<span class="nc" id="L111">            e.printStackTrace();</span>
+<span class="nc" id="L112">            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;服务器内部错误/该服务提供者不存在&quot;);</span>
+<span class="fc" id="L113">        }</span>
+<span class="fc" id="L114">        return Common.decorateReturnObject(returnObject);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

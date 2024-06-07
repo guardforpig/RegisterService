@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">allTest 覆盖结果</a> &gt; <a href="index.source.html" class="el_package">com.middleware.server.console</a> &gt; <span class="el_source">UserController.java</span></div><h1>UserController.java</h1><pre class="source lang-java linenums">package com.middleware.server.console;
+
+import com.middleware.server.annotation.Audit;
+import com.middleware.server.annotation.LoginUser;
+import com.middleware.server.common.Common;
+import com.middleware.server.common.ReturnObject;
+import com.middleware.server.model.VO.LoginVO;
+import com.middleware.server.model.VO.TokenRetVO;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpServletResponse;
+
+@RestController
+<span class="fc" id="L20">@Slf4j</span>
+@RequestMapping(value = &quot;/&quot;, produces = &quot;application/json;charset=UTF-8&quot;,consumes = &quot;application/json;charset=UTF-8&quot;)
+<span class="fc" id="L22">public class UserController {</span>
+    @Autowired
+    UserService userService;
+    @PostMapping(&quot;/login&quot;)
+    public Object login(@Validated @RequestBody LoginVO loginVo, HttpServletResponse response) {
+<span class="fc" id="L27">        System.out.println(loginVo);</span>
+<span class="fc" id="L28">        ReturnObject returnObject = null;</span>
+<span class="fc" id="L29">        returnObject = userService.userLogin(loginVo.getUserName(), loginVo.getPassword());</span>
+<span class="pc bpc" id="L30" title="1 of 2 branches missed.">        if (returnObject.getData() != null) {</span>
+<span class="fc" id="L31">            TokenRetVO vo = (TokenRetVO) returnObject.getData();</span>
+<span class="fc" id="L32">            response.addHeader(&quot;token&quot;, vo.getToken());</span>
+        }
+<span class="fc" id="L34">        return Common.decorateReturnObject(returnObject);</span>
+    }
+
+    @Audit
+    @ApiImplicitParams({
+            @ApiImplicitParam(paramType = &quot;body&quot;, dataType = &quot;LoginVO&quot;, name = &quot;loginVO&quot;, value = &quot;登录信息&quot;, required = true)
+    })
+    @ApiOperation(value = &quot;用户登出&quot;)
+    @GetMapping(&quot;/userLogout&quot;)
+    public Object logout(@LoginUser Long userId) {
+<span class="fc" id="L44">        ReturnObject returnObject = null;</span>
+<span class="fc" id="L45">        returnObject = userService.userLogout(userId);</span>
+<span class="fc" id="L46">        return Common.decorateReturnObject(returnObject);</span>
+    }
+    //----------------------------------------------------------------------------------------
+    //用户与角色部分
+
+    /**
+     * 用户新增角色
+     *
+     * @param cid
+     * @param userid
+     * @param roleid
+     * @return
+     * @author tong
+     */
+    @Audit
+    @ApiImplicitParams({
+            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;cid&quot;, value = &quot;创建者id&quot;, required = true),
+            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;user&quot;, value = &quot;被赋予权限的用户id&quot;, required = true),
+            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;role&quot;, value = &quot;赋予的权限的id&quot;, required = true)
+    })
+    @ApiOperation(value = &quot;用户新增角色&quot;)
+    @PostMapping(&quot;/users/{cid}/beusers/{userid}/roles/{roleid}&quot;)
+    public Object userAddRole(@PathVariable Long cid, @PathVariable Long userid, @PathVariable Long roleid) {
+<span class="fc" id="L69">        ReturnObject returnObject = null;</span>
+<span class="fc" id="L70">        returnObject = userService.userAddRole(cid, userid, roleid);</span>
+<span class="fc" id="L71">        return Common.decorateReturnObject(returnObject);</span>
+    }
+
+
+    /**
+     * 删除某个用户的某个角色
+     *
+     * @param uid 用户id
+     * @param rid 角色id
+     * @return Create By GXC
+     */
+    @Audit
+    @ApiImplicitParams({
+            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;userid&quot;, value = &quot;用户id&quot;, required = true),
+            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;roleid&quot;, value = &quot;角色id&quot;, required = true)
+    })
+    @ApiOperation(value = &quot;删除某个用户的某个角色&quot;)
+    @DeleteMapping(&quot;/user_id/{userid}/role_id/{roleid}&quot;)
+    public Object deleteUserRole(@PathVariable(&quot;userid&quot;) Long uid, @PathVariable(&quot;roleid&quot;) Long rid) {
+<span class="fc" id="L90">        ReturnObject returnObject = null;</span>
+<span class="fc" id="L91">        returnObject = userService.deleteUserRole(uid, rid);</span>
+<span class="fc" id="L92">        return Common.decorateReturnObject(returnObject);</span>
+    }
+
+    /**
+     * 查询某个用户所拥有角色信息
+     *
+     * @param uid 发出查询的用户id
+     * @param tid 查询目标用户id
+     * @return Create By GXC
+     */
+    @Audit
+    @ApiImplicitParams({
+            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;uid&quot;, value = &quot;查询用户的id&quot;, required = true),
+            @ApiImplicitParam(paramType = &quot;path&quot;, dataType = &quot;Long&quot;, name = &quot;tid&quot;, value = &quot;查询目标用户的id&quot;, required = true)
+    })
+    @ApiOperation(value = &quot;某用户查看某用户的角色&quot;)
+    @GetMapping(&quot;/users/{uid}/target/{tid}&quot;)
+    public Object searchAddRole(@PathVariable(&quot;uid&quot;) Long uid, @PathVariable(&quot;tid&quot;) Long tid) {
+<span class="fc" id="L110">        ReturnObject returnObject = null;</span>
+<span class="fc" id="L111">        returnObject = userService.selectUserRoleByuId(tid);</span>
+<span class="fc" id="L112">        return Common.decorateReturnObject(returnObject);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

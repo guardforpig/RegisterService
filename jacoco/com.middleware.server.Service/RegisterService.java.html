@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RegisterService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">allTest 覆盖结果</a> &gt; <a href="index.source.html" class="el_package">com.middleware.server.Service</a> &gt; <span class="el_source">RegisterService.java</span></div><h1>RegisterService.java</h1><pre class="source lang-java linenums">package com.middleware.server.Service;
+
+import com.alibaba.fastjson.JSON;
+import com.middleware.server.POJO.Member;
+import com.middleware.server.naming.GroupInfo;
+import com.middleware.server.naming.ServiceInfo;
+import com.middleware.server.util.BroadcastUdp;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+@RestController
+<span class="fc" id="L20">@Slf4j</span>
+@RequestMapping(value = &quot;/&quot;, produces = &quot;application/json;charset=UTF-8&quot;,consumes = &quot;application/json;charset=UTF-8&quot;)
+<span class="fc" id="L22">public class RegisterService {</span>
+<span class="fc" id="L23">    public static ConcurrentHashMap&lt;String, GroupInfo&gt; groupMap=new ConcurrentHashMap&lt;String,GroupInfo&gt;();</span>
+    //200，注册成功或者已经注册,udp告知订阅该服务的人
+    @PostMapping(&quot;/register&quot;)
+    public Object register(@RequestParam(&quot;ip&quot;)String ip,
+                            @RequestParam(&quot;port&quot;)String port,
+                            @RequestParam(&quot;ServiceName&quot;)String serviceName,
+                            @RequestParam(&quot;GroupName&quot;)String groupName,
+                            @RequestParam(value = &quot;providers&quot;,required = false) String providers){
+<span class="fc" id="L31">        Map&lt;String,Object&gt; obj=new HashMap&lt;&gt;();</span>
+        try{
+<span class="fc" id="L33">            List&lt;String&gt; providerList= Arrays.asList(providers.split(&quot;,&quot;));</span>
+<span class="fc" id="L34">            Set&lt;String&gt; providerSet=new HashSet&lt;&gt;();</span>
+<span class="fc" id="L35">            providerSet.addAll(providerList);</span>
+<span class="fc" id="L36">            GroupInfo group=getGroup(groupName);</span>
+<span class="fc" id="L37">            Member member=new Member(ip,port);</span>
+<span class="fc" id="L38">            member.setProviders(providerSet);</span>
+            ServiceInfo service;
+<span class="fc bfc" id="L40" title="All 2 branches covered.">            if(group.checkService(serviceName)){</span>
+<span class="fc" id="L41">                service=group.getService(serviceName);</span>
+<span class="fc" id="L42">                service.newMember(member);</span>
+            }else{
+<span class="fc" id="L44">                service=group.newService(serviceName);</span>
+<span class="fc" id="L45">                service.newMember(member);</span>
+            }
+<span class="pc bpc" id="L47" title="1 of 4 branches missed.">            if(providers==null||providers.isBlank()){</span>
+<span class="fc" id="L48">                obj.put(&quot;producers&quot;,null);</span>
+            }else{
+<span class="fc" id="L50">                obj.put(&quot;producers&quot;,group.subscribe(providerSet,member));</span>
+            }
+<span class="fc" id="L52">            Map&lt;String,ServiceInfo&gt; map=new HashMap&lt;&gt;();</span>
+<span class="fc" id="L53">            map.put(serviceName,service);</span>
+<span class="fc" id="L54">            new BroadcastUdp(JSON.toJSONString(map),group.getConsumers(serviceName)).start();</span>
+<span class="nc" id="L55">        }catch (Exception e){</span>
+<span class="nc" id="L56">            e.printStackTrace();</span>
+<span class="nc" id="L57">            System.out.println(e.getMessage());</span>
+<span class="nc" id="L58">            obj.put(&quot;errno&quot;,500);</span>
+<span class="nc" id="L59">            return new ResponseEntity(obj, HttpStatus.OK);</span>
+<span class="fc" id="L60">        }</span>
+<span class="fc" id="L61">        obj.put(&quot;errno&quot;,200);</span>
+<span class="fc" id="L62">        System.out.println(&quot;register:&quot;+ip+&quot;:&quot;+port+&quot;:&quot;+serviceName+&quot;:&quot;+groupName);</span>
+<span class="fc" id="L63">        return new ResponseEntity(obj, HttpStatus.OK);</span>
+    }
+    /*
+    检测是否存在，不存在返回203，存在刷新alive状态返回200
+     */
+    @PostMapping(&quot;/beat&quot;)
+    public Object beat(@RequestParam(&quot;ip&quot;)String ip,
+                           @RequestParam(&quot;port&quot;)String port,
+                           @RequestParam(&quot;ServiceName&quot;)String serviceName,
+                           @RequestParam(&quot;GroupName&quot;)String groupName){
+<span class="fc" id="L73">        System.out.println(&quot;beat:&quot;+ip+&quot;:&quot;+port+&quot;:&quot;+serviceName+&quot;:&quot;+groupName);</span>
+<span class="fc" id="L74">        Map&lt;String,Object&gt; obj=new HashMap&lt;&gt;();</span>
+        try{
+<span class="fc" id="L76">            GroupInfo groupInfo=groupMap.get(groupName);</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">            if(groupInfo==null){</span>
+<span class="fc" id="L78">                obj.put(&quot;errno&quot;,203);</span>
+<span class="fc" id="L79">                obj.put(&quot;errmsg&quot;,&quot;组不存在&quot;);</span>
+<span class="fc" id="L80">                return new ResponseEntity(obj, HttpStatus.OK);</span>
+            }
+<span class="fc" id="L82">            ServiceInfo serviceInfo=groupInfo.getService(serviceName);</span>
+<span class="fc bfc" id="L83" title="All 2 branches covered.">            if(serviceInfo==null){</span>
+<span class="fc" id="L84">                obj.put(&quot;errno&quot;,203);</span>
+<span class="fc" id="L85">                obj.put(&quot;errmsg&quot;,&quot;服务不存在&quot;);</span>
+<span class="fc" id="L86">                return new ResponseEntity(obj, HttpStatus.OK);</span>
+            }
+<span class="fc" id="L88">            Member member=new Member(ip,port);</span>
+<span class="fc bfc" id="L89" title="All 2 branches covered.">            if(!serviceInfo.checkMember(member)){</span>
+<span class="fc" id="L90">                obj.put(&quot;errno&quot;,203);</span>
+<span class="fc" id="L91">                obj.put(&quot;errmsg&quot;,&quot;实例未注册&quot;);</span>
+<span class="fc" id="L92">                return new ResponseEntity(obj, HttpStatus.OK);</span>
+            }else{
+<span class="fc" id="L94">                serviceInfo.reAlive(member);</span>
+<span class="fc" id="L95">                obj.put(&quot;errno&quot;,200);</span>
+<span class="fc" id="L96">                return new ResponseEntity(obj, HttpStatus.OK);</span>
+            }
+<span class="nc" id="L98">        }catch (Exception e){</span>
+<span class="nc" id="L99">            e.printStackTrace();</span>
+<span class="nc" id="L100">            System.out.println(e.getMessage());</span>
+<span class="nc" id="L101">            obj.put(&quot;errno&quot;,500);</span>
+<span class="nc" id="L102">            return new ResponseEntity(obj, HttpStatus.OK);</span>
+        }
+    }
+
+    /*
+      获取服务提供者
+     */
+    @PostMapping(&quot;/loadProviders&quot;)
+    public Object loadProviders(@RequestParam(&quot;ip&quot;)String ip,
+                       @RequestParam(&quot;port&quot;)String port,
+                       @RequestParam(&quot;ServiceName&quot;)String serviceName,
+                       @RequestParam(&quot;GroupName&quot;)String groupName,
+                       @RequestParam(value = &quot;providers&quot;,required = false) String providers){
+<span class="fc" id="L115">        Map&lt;String,Object&gt; obj=new HashMap&lt;&gt;();</span>
+        try{
+<span class="fc" id="L117">            List&lt;String&gt; providerList= Arrays.asList(providers.split(&quot;,&quot;));</span>
+<span class="fc" id="L118">            Set&lt;String&gt; providerSet=new HashSet&lt;&gt;();</span>
+<span class="fc" id="L119">            providerSet.addAll(providerList);</span>
+<span class="fc" id="L120">            GroupInfo group=getGroup(groupName);</span>
+<span class="fc" id="L121">            Member member=new Member(ip,port);</span>
+<span class="fc" id="L122">            member.setProviders(providerSet);</span>
+<span class="fc" id="L123">            ServiceInfo service=groupMap.get(groupName).getService(serviceName);</span>
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">            if(service==null){</span>
+<span class="nc" id="L125">                obj.put(&quot;errno&quot;,200);</span>
+<span class="nc" id="L126">                return new ResponseEntity(obj, HttpStatus.OK);</span>
+            }
+<span class="fc" id="L128">            service.newMember(member);</span>
+<span class="fc" id="L129">            obj.put(&quot;producers&quot;,group.subscribe(providerSet,member));</span>
+<span class="fc" id="L130">            obj.put(&quot;errno&quot;,200);</span>
+<span class="fc" id="L131">            return new ResponseEntity(obj, HttpStatus.OK);</span>
+<span class="nc" id="L132">        }catch (Exception e){</span>
+<span class="nc" id="L133">            e.printStackTrace();</span>
+<span class="nc" id="L134">            System.out.println(e.getMessage());</span>
+<span class="nc" id="L135">            obj.put(&quot;errno&quot;,500);</span>
+<span class="nc" id="L136">            return new ResponseEntity(obj, HttpStatus.OK);</span>
+        }
+    }
+
+    @PostMapping(&quot;/logout&quot;)
+    public Object logout(@RequestParam(&quot;ip&quot;)String ip,
+                                @RequestParam(&quot;port&quot;)String port,
+                                @RequestParam(&quot;ServiceName&quot;)String serviceName,
+                                @RequestParam(&quot;GroupName&quot;)String groupName,
+                                @RequestParam(value = &quot;providers&quot;,required = false) String providers){
+<span class="fc" id="L146">        Map&lt;String,Object&gt; obj=new HashMap&lt;&gt;();</span>
+        try{
+<span class="fc" id="L148">            List&lt;String&gt; providerList= Arrays.asList(providers.split(&quot;,&quot;));</span>
+<span class="fc" id="L149">            Set&lt;String&gt; providerSet=new HashSet&lt;&gt;();</span>
+<span class="fc" id="L150">            providerSet.addAll(providerList);</span>
+<span class="fc" id="L151">            GroupInfo group=getGroup(groupName);</span>
+<span class="fc" id="L152">            Member member=new Member(ip,port);</span>
+<span class="fc" id="L153">            member.setProviders(providerSet);</span>
+<span class="fc" id="L154">            ServiceInfo service=group.getService(serviceName);</span>
+<span class="pc bpc" id="L155" title="1 of 2 branches missed.">            if(service!=null)service.deleteMember(member);</span>
+<span class="fc" id="L156">            group.relieveSub(member);</span>
+<span class="fc" id="L157">            Map&lt;String,ServiceInfo&gt; map=new HashMap&lt;&gt;();</span>
+<span class="fc" id="L158">            map.put(serviceName,service);</span>
+<span class="fc" id="L159">            List&lt;Member&gt; subscribers=group.getConsumers(serviceName);</span>
+<span class="pc bpc" id="L160" title="1 of 2 branches missed.">            if(subscribers!=null){</span>
+<span class="fc" id="L161">                new BroadcastUdp(JSON.toJSONString(map),subscribers).start();</span>
+            }
+<span class="fc" id="L163">            obj.put(&quot;errno&quot;,200);</span>
+<span class="fc" id="L164">            return new ResponseEntity(obj, HttpStatus.OK);</span>
+<span class="nc" id="L165">        }catch (Exception e){</span>
+<span class="nc" id="L166">            e.printStackTrace();</span>
+<span class="nc" id="L167">            System.out.println(e.getMessage());</span>
+<span class="nc" id="L168">            obj.put(&quot;errno&quot;,500);</span>
+<span class="nc" id="L169">            return new ResponseEntity(obj, HttpStatus.OK);</span>
+        }
+    }
+
+    GroupInfo getGroup(String groupName){
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        if(checkGroup(groupName)){</span>
+<span class="fc" id="L175">            return groupMap.get(groupName);</span>
+        }else{
+<span class="fc" id="L177">            GroupInfo groupInfo=new GroupInfo();</span>
+<span class="fc" id="L178">            groupMap.put(groupName,groupInfo);</span>
+<span class="fc" id="L179">            return groupInfo;</span>
+        }
+    }
+
+    boolean checkGroup(String groupName){
+<span class="fc bfc" id="L184" title="All 2 branches covered.">        if(groupMap.get(groupName)==null){</span>
+<span class="fc" id="L185">            return false;</span>
+        }
+<span class="fc" id="L187">        return true;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

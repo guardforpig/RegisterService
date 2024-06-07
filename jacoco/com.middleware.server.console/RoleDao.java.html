@@ -1,0 +1,454 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RoleDao.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">allTest 覆盖结果</a> &gt; <a href="index.source.html" class="el_package">com.middleware.server.console</a> &gt; <span class="el_source">RoleDao.java</span></div><h1>RoleDao.java</h1><pre class="source lang-java linenums">package com.middleware.server.console;
+
+import com.middleware.server.common.Common;
+import com.middleware.server.common.ResponseCode;
+import com.middleware.server.common.ReturnObject;
+import com.middleware.server.model.BO.Privilege;
+import com.middleware.server.model.BO.Role;
+import com.middleware.server.model.BO.RolePrivilege;
+import com.middleware.server.model.BO.User;
+import com.middleware.server.model.PO.*;
+import com.middleware.server.model.VO.RolePrivilegeRetVO;
+import com.middleware.server.model.VO.RolePrivilegeVO;
+import com.middleware.server.model.VO.RoleRetVO;
+import com.middleware.server.model.VO.RoleVO;
+import com.middleware.server.mapper.*;
+import com.middleware.server.util.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+@Repository
+<span class="fc" id="L32">public class RoleDao {</span>
+
+<span class="fc" id="L34">    private static final Logger logger = LoggerFactory.getLogger(RoleDao.class);</span>
+
+    @Value(&quot;${privilegeservice.role.expiretime}&quot;)
+    private long timeout;
+
+    @Autowired
+    UserRolePOMapper userRolePOMapper;
+
+    @Autowired
+    UserPOMapper userPOMapper;
+
+    @Autowired
+    RolePOMapper rolePOMapper;
+
+    @Autowired
+    PrivilegePOMapper privilegePOMapper;
+
+    @Autowired
+    RolePrivilegePOMapper rolePrivilegePOMapper;
+
+    @Autowired
+    PrivilegeDao privilegeDao;
+
+    @Autowired
+    private RedisTemplate&lt;String, Serializable&gt; redisTemplate;
+    @Autowired
+    com.middleware.server.util.Logger logger1;
+<span class="fc" id="L61">    public final Log log=new Log(this.getClass().getName(),&quot;log&quot;);</span>
+    public void initialize() {
+        //rolePrivilege表的初始化
+<span class="fc" id="L64">        RolePrivilegePOExample example = new RolePrivilegePOExample();</span>
+<span class="fc" id="L65">        List&lt;RolePrivilegePO&gt; rolePrivilegePOS = rolePrivilegePOMapper.selectByExample(example);</span>
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        for (RolePrivilegePO rolePrivilegePO : rolePrivilegePOS) {</span>
+<span class="fc" id="L67">            RolePrivilege rolePrivilege = new RolePrivilege(rolePrivilegePO);</span>
+<span class="fc" id="L68">            rolePrivilegePO.setSignature(rolePrivilege.getSignature());</span>
+<span class="fc" id="L69">            rolePrivilegePO.setGmtModified(LocalDateTime.now());</span>
+<span class="fc" id="L70">            logger.debug(&quot;role&quot;+rolePrivilegePO.getRoleId()+&quot;   privilege&quot;+rolePrivilegePO.getPrivilegeId()+&quot;initialize signature&quot;);</span>
+<span class="fc" id="L71">            rolePrivilegePOMapper.updateByPrimaryKeySelective(rolePrivilegePO);</span>
+<span class="fc" id="L72">        }</span>
+<span class="fc" id="L73">    }</span>
+
+
+    /**
+     * @param roleVo 角色的Vo对象
+     * @return Create By Gan Xinchao
+     */
+    public ReturnObject&lt;RoleRetVO&gt; addRole(RoleVO roleVo) {
+<span class="nc" id="L81">        ReturnObject returnObject = null;</span>
+        try {
+<span class="nc" id="L83">            RolePO rolePo = roleVo.toRolePO();</span>
+<span class="nc" id="L84">            rolePo.setGmtCreate(LocalDateTime.now());</span>
+<span class="nc" id="L85">            rolePo.setGmtModified(LocalDateTime.now());</span>
+<span class="nc" id="L86">            roleVo = new RoleVO(rolePo);</span>
+<span class="nc" id="L87">            rolePOMapper.insert(rolePo);</span>
+<span class="nc" id="L88">            RoleRetVO roleRetVO = roleVo.toRoleRetVO();</span>
+<span class="nc" id="L89">            roleRetVO.setId(rolePo.getId());</span>
+<span class="nc" id="L90">            returnObject = new ReturnObject(roleRetVO);</span>
+<span class="nc" id="L91">        } catch (Exception e) {</span>
+<span class="nc" id="L92">            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);</span>
+//            e.printStackTrace();
+<span class="nc" id="L94">        }</span>
+<span class="nc" id="L95">        return returnObject;</span>
+    }
+
+    ;
+//
+//    /**
+//     * 删除角色
+//     *
+//     * @param roleId 角色ID
+//     * @return Create By Gan Xinchao
+//     */
+//    public ReturnObject&lt;Integer&gt; deleteRoleByID(Long roleId) {
+//        ReturnObject returnObject = null;
+//        try {
+//            Integer a = rolePOMapper.deleteByPrimaryKey(roleId);
+//            returnObject = new ReturnObject(a);
+//            logger1.writeLog(log,&quot;deleteRoleByID&quot;,&quot;删除角色&quot;+roleId);
+//        } catch (Exception e) {
+//            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);
+//            logger1.writeLog(log,&quot;deleteRoleByID&quot;,&quot;删除角色&quot;+roleId+&quot;失败&quot;);
+////            e.printStackTrace();
+//        }
+//        return returnObject;
+//    }
+
+    ;
+//
+//
+//    /**
+//     * 修改角色信息
+//     *
+//     * @param roleVO 更新角色的信息的VO对象
+//     * @return 返回操作成功或失败
+//     * Create By Gan Xinchao
+//     */
+//    public ReturnObject&lt;Integer&gt; updateRoleByID(RoleVO roleVO) {
+//        ReturnObject returnObject = null;
+//        try {
+//            RolePO rolePO = roleVO.toRolePO();
+//            rolePO.setId(roleVO.getId());
+//            rolePO.setGmtModified(LocalDateTime.now());
+//            Integer a = rolePOMapper.updateByPrimaryKey(rolePO);
+//            String roleKey = &quot;r_&quot; + roleVO.getId();
+//            //修改角色在redis的信息
+//            if (redisTemplate.hasKey(roleKey)) {
+//                redisTemplate.delete(roleKey);
+//            }
+//            returnObject = new ReturnObject(a);
+//            logger1.writeLog(log,&quot;updateRoleByID&quot;,&quot;更新角色信息&quot;+&quot;成功&quot;);
+//        } catch (Exception e) {
+//            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);
+//            logger1.writeLog(log,&quot;updateRoleByID&quot;,&quot;更新角色信息&quot;+&quot;失败&quot;);
+////            e.printStackTrace();
+//        }
+//        return returnObject;
+//    }
+//
+//    ;
+//
+//    /**
+//     * 根据id查找角色
+//     *
+//     * @param id 角色id
+//     * @return Create By Gan Xinchao
+//     */
+//    public ReturnObject&lt;RoleVO&gt; selectRoleByID(Long id) {
+//        ReturnObject returnObject = null;
+//        try {
+//            RolePO rolePo = rolePOMapper.selectByPrimaryKey(id);
+//            RoleVO roleVO = new RoleVO(rolePo);
+//            returnObject = new ReturnObject&lt;RoleVO&gt;(roleVO);
+//            logger1.writeLog(log,&quot;selectRoleByID&quot;,&quot;查询角色&quot;+id+&quot;成功&quot;);
+//        } catch (Exception e) {
+//            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);
+//            logger1.writeLog(log,&quot;selectRoleByID&quot;,&quot;查询角色&quot;+id+&quot;失败&quot;);
+//            e.printStackTrace();
+//        }
+//        return returnObject;
+//    }
+//
+//    /**
+//     * 根据角色信息查询角色
+//     *
+//     * @param roleVO 角色信息VO对象
+//     * @return 返回查询结果List等查询信息
+//     * Create By Gan Xinchao
+//     */
+//    public ReturnObject&lt;List&lt;RoleVO&gt;&gt; selectRoleByExample(RoleVO roleVO) {
+//        ReturnObject returnObject = null;
+//        try {
+//            RolePOExample example = new RolePOExample();
+//            RolePOExample.Criteria criteria = example.createCriteria();
+//            if (roleVO.getId() != null) {
+//                criteria.andIdEqualTo(roleVO.getId());
+//            } else if (roleVO.getName() != null) {
+//                criteria.andNameEqualTo(roleVO.getName());
+//            } else {
+//                if (roleVO.getCreatorid() != null) {
+//                    criteria.andCreatorIdEqualTo(roleVO.getCreatorid());
+//                }
+//                if (roleVO.getDescription() != null) {
+//                    criteria.andDescriptionEqualTo(roleVO.getDescription());
+//                }
+//                if (roleVO.getGmtcreate() != null) {
+//                    criteria.andGmtCreateEqualTo(roleVO.getGmtcreate());
+//                }
+//                if (roleVO.getGmtmodified() != null) {
+//                    criteria.andGmtModifiedEqualTo(roleVO.getGmtmodified());
+//                }
+//            }
+//            List&lt;RolePO&gt; resultList = rolePOMapper.selectByExample(example);
+//            List&lt;RoleVO&gt; returnList = new ArrayList&lt;RoleVO&gt;();
+//            for (RolePO rolePO : resultList) {
+//                RoleVO roleVO1 = new RoleVO(rolePO);
+//                returnList.add(roleVO1);
+//            }
+//            returnObject = new ReturnObject(returnList);
+//            logger1.writeLog(log,&quot;selectRoleByExample&quot;,&quot;查询角色&quot;+&quot;成功&quot;);
+//        } catch (Exception e) {
+//            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);
+//            logger1.writeLog(log,&quot;selectRoleByExample&quot;,&quot;查询角色失败&quot;);
+////          e.printStackTrace();
+//        }
+//        return returnObject;
+//    }
+//
+//
+////-------------------------角色&amp;权限部分----------------------------------------------------------------------------------
+//    /**
+//     * 增加角色权限
+//     * @param creatorId   创建者
+//     * @param roleId      角色
+//     * @param privilegeId 权限
+//     * @return Create By GXC 9:04
+//     */
+//    public ReturnObject roleAddPrivilege(Long creatorId, Long roleId, Long privilegeId) {
+//        ReturnObject returnObject = null;
+//        RolePO rolePO;
+//        UserPO creatorPo;
+//        PrivilegePO privilegePO;
+//        //创建者是否存在
+//        try {
+//            creatorPo = userPOMapper.selectByPrimaryKey(creatorId);
+//            if (creatorPo == null) {
+//                returnObject = new ReturnObject(ResponseCode.RESOURCE_ID_NOTEXIST, &quot;创建者id不存在&quot;);
+//                return returnObject;
+//            }
+//        } catch (Exception e) {
+//            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);
+//            return returnObject;
+//        }
+//        //判断角色是否存在
+//        try {
+//            rolePO = rolePOMapper.selectByPrimaryKey(roleId);
+//            if (rolePO == null) {
+//                returnObject = new ReturnObject(ResponseCode.RESOURCE_ID_NOTEXIST, &quot;用户id不存在&quot;);
+//                return returnObject;
+//            }
+//        } catch (Exception e) {
+//            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);
+//            return returnObject;
+//        }
+//        //权限是否存在
+//        try {
+//            privilegePO = privilegePOMapper.selectByPrimaryKey(privilegeId);
+//            if (privilegePO == null) {
+//                returnObject = new ReturnObject(ResponseCode.RESOURCE_ID_NOTEXIST, &quot;角色id不存在&quot;);
+//                return returnObject;
+//            }
+//        } catch (Exception e) {
+//            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);
+//            return returnObject;
+//        }
+//        //插入数据库
+//        RolePrivilegePO rolePrivilegePO = new RolePrivilegePO();
+//        rolePrivilegePO.setRoleId(roleId);
+//        rolePrivilegePO.setGmtCreate(LocalDateTime.now());
+//        rolePrivilegePO.setGmtModified(LocalDateTime.now());
+//        rolePrivilegePO.setCreatorId(creatorId);
+//        rolePrivilegePO.setPrivilegeId(privilegeId);
+//        RolePrivilege rolePrivilege = new RolePrivilege(rolePrivilegePO, new Role(rolePO), new Privilege(privilegePO), new User(creatorPo));
+//        rolePrivilegePO.setSignature(rolePrivilege.getSignature());
+//        rolePrivilegePOMapper.insert(rolePrivilegePO);
+//        String roleKey = &quot;r_&quot; + roleId;
+//        //修改角色在redis的信息
+//        if (redisTemplate.hasKey(roleKey)) {
+//            redisTemplate.delete(roleKey);
+//            loadRolePriv(roleId);
+//        }
+//        RolePrivilegeRetVO rolePrivilegeRetVO = rolePrivilege.toRetVO();
+//        returnObject = new ReturnObject(rolePrivilegeRetVO);
+//        return returnObject;
+//    }
+//
+//    /**
+//     * 根据id删除角色权限
+//     *
+//     * @param id 角色权限的唯一id
+//     * @return Create By GXC
+//     */
+//    public ReturnObject roleDeletePrivilegeById(Long id) {
+//        ReturnObject returnObject = null;
+//        try {
+//            Integer a = rolePrivilegePOMapper.deleteByPrimaryKey(id);
+//            RolePrivilegePO rolePrivilegePO=rolePrivilegePOMapper.selectByPrimaryKey(id);
+//            String roleKey = &quot;r_&quot; + rolePrivilegePO.getRoleId();
+//            //修改角色在redis的信息
+//            if (redisTemplate.hasKey(roleKey)) {
+//                redisTemplate.delete(roleKey);
+//                loadRolePriv(rolePrivilegePO.getRoleId());
+//            }
+//            returnObject = new ReturnObject(a);
+//        } catch (Exception e) {
+//            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);
+//            e.printStackTrace();
+//        }
+//        return returnObject;
+//    }
+//
+//    /**
+//     * 根据角色id和权限id删除该权限
+//     *
+//     * @param rId 角色id
+//     * @param pId 权限id
+//     * @return Create By GXC
+//     */
+//    public ReturnObject roleDeletePrivilege(Long rId, Long pId) {
+//        ReturnObject returnObject = null;
+//        try {
+//            RolePrivilegePOExample example = new RolePrivilegePOExample();
+//            RolePrivilegePOExample.Criteria criteria = example.createCriteria();
+//            if (rId == null || pId == null) {
+//                returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;参数缺少&quot;);
+//            } else {
+//                criteria.andRoleIdEqualTo(rId);
+//                criteria.andPrivilegeIdEqualTo(pId);
+//                List&lt;RolePrivilegePO&gt; resultList = rolePrivilegePOMapper.selectByExample(example);
+//                if (resultList.isEmpty()) {
+//                    returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;该条目不存在，请检查rId和pId是否正确&quot;);
+//                } else {
+//                    Long id = resultList.get(0).getId();
+//                    Integer a = rolePrivilegePOMapper.deleteByPrimaryKey(id);
+//                    String roleKey=&quot;r_&quot;+rId;
+//                    if (redisTemplate.hasKey(roleKey)) {
+//                        redisTemplate.delete(roleKey);
+//                        loadRolePriv(rId);
+//                    }
+//                    returnObject = new ReturnObject(a);
+//                }
+//            }
+//        } catch (Exception e) {
+//            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);
+//            e.printStackTrace();
+//        }
+//        return returnObject;
+//    }
+//
+//    /**
+//     * 根据角色权限信息查找对应角色权限元组
+//     *
+//     * @param rolePrivilegeVO
+//     * @return Create By GXC
+//     */
+//    public ReturnObject selectRolePrivilege(RolePrivilegeVO rolePrivilegeVO) {
+//        ReturnObject returnObject = null;
+//        try {
+//            RolePrivilegePOExample example = new RolePrivilegePOExample();
+//            RolePrivilegePOExample.Criteria criteria = example.createCriteria();
+//            if (rolePrivilegeVO.getPrivilegeid() != null) {
+//                criteria.andIdEqualTo(rolePrivilegeVO.getPrivilegeid());
+//            } else {
+//                if (rolePrivilegeVO.getRoleid() != null) {
+//                    criteria.andRoleIdEqualTo(rolePrivilegeVO.getRoleid());
+//                }
+//                if (rolePrivilegeVO.getPrivilegeid() != null) {
+//                    criteria.andPrivilegeIdEqualTo(rolePrivilegeVO.getPrivilegeid());
+//                }
+//                if (rolePrivilegeVO.getCreatorid() != null) {
+//                    criteria.andCreatorIdEqualTo(rolePrivilegeVO.getCreatorid());
+//                }
+//                if (rolePrivilegeVO.getGmtmodified() != null) {
+//                    criteria.andGmtModifiedEqualTo(rolePrivilegeVO.getGmtmodified());
+//                }
+//                if (rolePrivilegeVO.getGmtcreate() != null) {
+//                    criteria.andGmtCreateEqualTo(rolePrivilegeVO.getGmtcreate());
+//                }
+//            }
+//            List&lt;RolePrivilegePO&gt; resultList = rolePrivilegePOMapper.selectByExample(example);
+//            List&lt;RolePrivilegeVO&gt; returnList = new ArrayList&lt;RolePrivilegeVO&gt;();
+//            for (RolePrivilegePO rolePrivilegePO : resultList) {
+//                RolePrivilegeVO rolePrivilegeVO1 = new RolePrivilegeVO(rolePrivilegePO);
+//                returnList.add(rolePrivilegeVO1);
+//            }
+//            returnObject = new ReturnObject(returnList);
+//        } catch (Exception e) {
+//            returnObject = new ReturnObject(ResponseCode.INTERNAL_SERVER_ERR, &quot;数据库错误&quot;);
+//            e.printStackTrace();
+//        }
+//        return returnObject;
+//    }
+//
+//    /**
+//     * 获取角色id下的所有权限的id
+//     *
+//     * @param id 角色id
+//     * @return
+//     */
+//    private List&lt;Long&gt; getPrivIdsByRoleId(Long id) {
+//        RolePrivilegePOExample example = new RolePrivilegePOExample();
+//        RolePrivilegePOExample.Criteria criteria = example.createCriteria();
+//        criteria.andRoleIdEqualTo(id);
+//        List&lt;RolePrivilegePO&gt; rolePrivilegePos = rolePrivilegePOMapper.selectByExample(example);
+//        List&lt;Long&gt; retIds = new ArrayList&lt;&gt;(rolePrivilegePos.size());
+//        for (RolePrivilegePO po : rolePrivilegePos) {
+//            StringBuilder signature = Common.concatString(&quot;-&quot;, po.getRoleId().toString(),
+//                    po.getPrivilegeId().toString(), po.getCreatorId().toString());
+//            String newSignature = Common.getSHA256(signature.toString());
+//
+//            if (newSignature.equals(po.getSignature())) {
+//                retIds.add(po.getPrivilegeId());
+//                logger.debug(&quot;getPrivIdsBByRoleId: roleId = &quot; + po.getRoleId() + &quot; privId = &quot; + po.getPrivilegeId());
+//            } else {
+//                logger.info(&quot;getPrivIdsBByRoleId: Wrong Signature(auth_role_privilege): id =&quot; + po.getId());
+//            }
+//        }
+//        return retIds;
+//    }
+
+    public void loadRolePriv(Long id) {
+<span class="nc" id="L424">        RolePrivilegePOExample example = new RolePrivilegePOExample();</span>
+<span class="nc" id="L425">        RolePrivilegePOExample.Criteria criteria = example.createCriteria();</span>
+<span class="nc" id="L426">        criteria.andRoleIdEqualTo(id);</span>
+<span class="nc" id="L427">        List&lt;RolePrivilegePO&gt; privs = rolePrivilegePOMapper.selectByExample(example);</span>
+<span class="nc" id="L428">        List&lt;Long&gt; privIds = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L429" title="All 2 branches missed.">        for (RolePrivilegePO privilegePO : privs) {</span>
+<span class="nc" id="L430">            privIds.add(privilegePO.getPrivilegeId());</span>
+<span class="nc" id="L431">        }</span>
+<span class="nc" id="L432">        String key = &quot;r_&quot; + id;</span>
+<span class="nc" id="L433">        List&lt;String&gt; list = new ArrayList&lt;&gt;();</span>
+//        for (Long pFatherId : privIds) {
+//            List&lt;String&gt; childKey = privilegeDao.getChild(pFatherId);
+//            for (String s : childKey) {
+//                list.add(s);
+//            }
+//        }
+        //去除重复部分
+        //newList保存去重后的数组
+<span class="nc" id="L442">        List newList = new ArrayList();</span>
+<span class="nc bnc" id="L443" title="All 2 branches missed.">        for (String s : list) {</span>
+<span class="nc bnc" id="L444" title="All 2 branches missed.">            if (!newList.contains(s)) {</span>
+<span class="nc" id="L445">                newList.add(s);</span>
+<span class="nc" id="L446">                redisTemplate.opsForSet().add(key, s);</span>
+            }
+<span class="nc" id="L448">        }</span>
+<span class="nc" id="L449">        System.out.println(Arrays.toString(newList.toArray()));</span>
+<span class="nc" id="L450">        long randTimeout = Common.addRandomTime(this.timeout);</span>
+<span class="nc" id="L451">        redisTemplate.expire(key, randTimeout, TimeUnit.SECONDS);</span>
+<span class="nc" id="L452">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>
